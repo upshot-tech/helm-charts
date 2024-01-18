@@ -26,3 +26,6 @@ global:
     # readOnlyRootFilesystem: true
     # runAsNonRoot: true
     # runAsUser: 1000
+
+additionalManifests: []
+additionalYamlManifests: ""

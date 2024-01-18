@@ -2,3 +2,5 @@
 ---
 {{ tpl (toYaml .) $ }}
 {{ end }}
+
+{{ tpl .Values.additionalYamlManifests . }}
