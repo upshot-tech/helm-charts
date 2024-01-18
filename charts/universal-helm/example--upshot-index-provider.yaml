@@ -1,0 +1,194 @@
+statefulsets:
+  - name: heads
+    replicas: 1
+    persistence:
+      size: 1Gi
+      storageClassName: gp2
+      volumeMountPath: /data
+    initContainers:
+      - name: init-keys
+        image: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging:dev-latest
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        command:
+          - /bin/sh
+          - -c
+          - |
+            KEYS_PATH="${APP_HOME}/keys"
+
+            if [ -d "$KEYS_PATH" ]; then
+              echo "Keys exist"
+            else
+              echo "Generating New Node Identity"
+              mkdir -p ${APP_HOME}/keys
+              cd $KEYS_PATH
+              /app/upshot-keys
+            fi
+        volumeMounts:
+          - name: heads-data
+            mountPath: /data
+        securityContext:
+          runAsUser: 1001
+    containers:
+      - name: head
+        image:
+          repository: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging
+          tag: dev-latest
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        command:
+          # - sleep
+          # - infinity
+          - /app/upshot-node
+          - --role=head
+          - --peer-db=$(APP_HOME)/peer-database
+          - --function-db=$(APP_HOME)/function-database
+          - --workspace=/tmp/node
+          - --private-key=$(APP_HOME)/keys/priv.bin
+          - --log-level=debug
+          - --port=9010
+          - --rest-api=:6000
+          # # # - --dialback-address=""
+          # # # - --dialback-port=""
+          # # # - --boot-nodes=""
+        ports:
+          - name: api
+            type: ClusterIP
+            port: 6000
+            protocol: TCP
+          - name: p2p
+            type: ClusterIP
+            port: 9010
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 256m
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: 6000
+          periodSeconds: 10
+          failureThreshold: 6  # 1min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 6000
+
+  - name: workers
+    replicas: 1
+    persistence:
+      size: 1Gi
+      storageClassName: gp2
+      volumeMountPath: /data
+    initContainers:
+      - name: init-keys
+        image: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging:dev-latest
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        command:
+          - /bin/sh
+          - -c
+          - |
+            KEYS_PATH="${APP_HOME}/keys"
+
+            if [ -d "$KEYS_PATH" ]; then
+              echo "Keys exist"
+            else
+              echo "Generating New Node Identity"
+              mkdir -p ${APP_HOME}/keys
+              cd $KEYS_PATH
+              /app/upshot-keys
+            fi
+        volumeMounts:
+          - name: workers-data
+            mountPath: /data
+        securityContext:
+          runAsUser: 1001
+
+      - name: wait-bootstrup-node    #! Do we need this step???????
+        image: alpine:latest
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -ex
+            apk add netcat-openbsd
+            while ! nc -z heads-0.heads 9010 </dev/null; do
+              echo "Waiting bootstrap node is up."
+              sleep 10;
+            done
+        securityContext:
+          runAsUser: 0
+
+    containers:
+      - name: worker
+        image:
+          repository: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging
+          tag: dev-latest
+        env:
+          - name: APP_HOME
+            value: "/data"
+          - name: UPSHOT_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: upshot-api-token
+                key: UPSHOT_API_TOKEN
+        workingDir: /data
+        command:
+          # - sleep
+          # - infinity
+          - /app/upshot-node
+          - --role=worker
+          - --peer-db=$(APP_HOME)/peer-database
+          - --function-db=$(APP_HOME)/function-database
+          - --runtime-path=/app/runtime
+          - --runtime-cli=bls-runtime
+          - --workspace=/tmp/node
+          - --private-key=$(APP_HOME)/keys/priv.bin
+          - --log-level=debug
+          - --port=9010
+          - --boot-nodes="/dns4/heads-0.heads/tcp/9010/p2p/12D3KooW9y4DMebnd4KfUfaAkE78PkAo6sEuyYi6cLSLdtu1tc5a"
+          # # # - --dialback-address=""
+          # # # - --dialback-port=""
+        ports:
+          - name: p2p
+            type: ClusterIP
+            port: 9010
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 256m
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: 9010
+          periodSeconds: 10
+          failureThreshold: 6  # 1min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 9010
+global:
+  fullnameOverride: release-name
+  serviceAccount:
+    create: true
+    name: node
+  securityContext:
+    fsGroup: 0
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroupChangePolicy: "Always"
+  # To update images with argocd-image-autoupdater
+  podAnnotations:
+    index-provider-staging-tag: dev-latest
+  imagePullPolicy: Always

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: universal-helm
+description: A Helm chart for Kubernetes
+
+keywords:
+  - blockchain
+  - web3
+
+maintainers:
+  - email: vlad@upshot.xyz
+
+type: application
+
+version: 0.3.7

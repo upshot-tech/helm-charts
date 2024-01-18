@@ -1,0 +1,35 @@
+{{- range $kstfs, $sts := .Values.statefulsets }}
+{{- range $kcntnr, $cntnr := $sts.containers }}
+{{- range $kprt, $prt := $cntnr.ports }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $sts.name }}-{{ $prt.name }}
+  labels:
+    {{- include "general.labels" $ | nindent 4 }}
+spec:
+  selector:
+    statefulsetname: {{ $sts.name }}
+  type: {{ $prt.type }}
+  ports:
+    - port: {{ $prt.port }}
+      targetPort: {{ $prt.port }}
+      protocol: {{ $prt.protocol }}
+      name: {{ $prt.name }}
+{{- end -}}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $sts.name }}
+  labels:
+    {{- include "general.labels" $ | nindent 4 }}
+spec:
+  selector:
+    statefulsetname: {{ $sts.name }}
+  clusterIP: None
+  ports:
+    - port: 12345
+{{- end -}}
