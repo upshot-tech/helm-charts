@@ -1,4 +1,4 @@
-# blockchain-nodes
+# universal-helm
 
 This repository contains the `universal-helm` Helm chart, which can generate Kubernetes manifests to deploy and expose a blockchain node using Ingress.
 
