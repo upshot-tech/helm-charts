@@ -4,10 +4,3 @@
 {{ end }}
 ---
 {{ tpl $.Values.additionalYamlManifests $ }}
----
-{{if $.Values.additionalManifestsFromFolder }}
-{{ range $path, $_ :=  $.Files.Glob  (printf "%s/*.yaml" $.Values.additionalManifestsFromFolder) }}
-{{ tpl ($.Files.Get $path) $ }}
----
-{{ end }}
-{{ end }}

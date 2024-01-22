@@ -32,4 +32,3 @@ global:
 
 additionalManifests: []
 additionalYamlManifests: ""
-additionalManifestsFromFolder: ""   #"additional-manifests"

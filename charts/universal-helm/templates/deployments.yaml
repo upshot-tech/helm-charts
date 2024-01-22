@@ -86,8 +86,8 @@ spec:
 
           ports:
           {{- range $kprt, $prt := $cntnr.ports }}
-            - name:  {{ $prt.name}}
-              protocol: {{ $prt.protocol }}
+            - name: {{ $prt.name}}
+              protocol: {{ default "TCP" $prt.protocol }}
               containerPort: {{ $prt.port }}
           {{- end }}
 
