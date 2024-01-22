@@ -18,6 +18,26 @@ spec:
       targetPort: {{ $prt.port }}
       protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
+
+{{if $prt.headless}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "general.labels" $ | nindent 4 }}
+  name: {{$sname}}-headless
+spec:
+  selector:
+    deploymentname: {{ $sts.name }}
+  ports:
+    - port: {{ $prt.port }}
+      targetPort: {{ $prt.port }}
+      protocol: {{ default "TCP" $prt.protocol }}
+      name: {{ $prt.name }}
+  type: ClusterIP
+  clusterIP: None
+{{- end }} {{/* if $prt.headless */}}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -44,7 +64,26 @@ spec:
       protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
 
-{{- end }}
-{{- end }}
-{{- end }}
+{{if $prt.headless}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "general.labels" $ | nindent 4 }}
+  name: {{$dname}}-headless
+spec:
+  selector:
+    deploymentname: {{ $dpl.name }}
+  ports:
+    - port: {{ $prt.port }}
+      targetPort: {{ $prt.port }}
+      protocol: {{ default "TCP" $prt.protocol }}
+      name: {{ $prt.name }}
+  type: ClusterIP
+  clusterIP: None
+{{- end }} {{/* if $prt.headless */}}
 
+{{- end }}
+{{- end }}
+{{- end }}
