@@ -52,6 +52,7 @@ spec:
       annotations: {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      serviceAccountName: {{ include "general.sa_name" $ }}
       setHostnameAsFQDN: true
       terminationGracePeriodSeconds: {{ default 30 $.Values.global.terminationGracePeriodSeconds }}
       {{- with $sts.affinity }}
@@ -69,9 +70,6 @@ spec:
 
       {{- with $.Values.global.securityContext }}
       securityContext: {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $.Values.global.serviceAccount.name }}
-      serviceAccountName: {{ . }}
       {{- end }}
 
       initContainers:

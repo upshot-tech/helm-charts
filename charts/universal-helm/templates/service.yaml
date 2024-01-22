@@ -1,35 +1,50 @@
 {{- range $kstfs, $sts := .Values.statefulsets }}
 {{- range $kcntnr, $cntnr := $sts.containers }}
 {{- range $kprt, $prt := $cntnr.ports }}
+{{$sname:=printf "%s-%s-%s" $sts.name $cntnr.name $prt.name}}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $sts.name }}-{{ $prt.name }}
+  name: {{$sname}}
   labels:
     {{- include "general.labels" $ | nindent 4 }}
 spec:
   selector:
     statefulsetname: {{ $sts.name }}
-  type: {{ $prt.type }}
+  type: {{ default "ClusterIP" $prt.type }}
   ports:
     - port: {{ $prt.port }}
       targetPort: {{ $prt.port }}
-      protocol: {{ $prt.protocol }}
+      protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
-{{- end -}}
 {{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Deployments services*/}}
+{{- range $kstfs, $dpl := .Values.deployments }}
+{{- range $kcntnr, $cntnr := $dpl.containers }}
+{{- range $kprt, $prt := $cntnr.ports }}
+{{$dname:=printf "%s-%s-%s" $dpl.name $cntnr.name $prt.name}}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $sts.name }}
+  name: {{$dname}}
   labels:
     {{- include "general.labels" $ | nindent 4 }}
 spec:
   selector:
-    statefulsetname: {{ $sts.name }}
-  clusterIP: None
+    deploymentname: {{ $dpl.name }}
+  type: {{ default "ClusterIP" $prt.type }}
   ports:
-    - port: 12345
-{{- end -}}
+    - port: {{ $prt.port }}
+      targetPort: {{ $prt.port }}
+      protocol: {{ default "TCP" $prt.protocol }}
+      name: {{ $prt.name }}
+
+{{- end }}
+{{- end }}
+{{- end }}
+

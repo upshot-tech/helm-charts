@@ -6,8 +6,6 @@ cronjobs: []
 
 global:
   serviceAccount:
-    # Specifies whether a service account should be created
-    create: true
     # Annotations to add to the service account
     annotations: {}
     # The name of the service account to use.
@@ -26,6 +24,12 @@ global:
     # readOnlyRootFilesystem: true
     # runAsNonRoot: true
     # runAsUser: 1000
+  # emissary:
+  #   emissaryServiceName: emissary-ingress.emissary-ingress
+  #   tlsSecret:
+  #     name: ""
+  #     namespace: ""
 
 additionalManifests: []
 additionalYamlManifests: ""
+additionalManifestsFromFolder: ""   #"additional-manifests"

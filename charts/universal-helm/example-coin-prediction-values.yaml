@@ -1,0 +1,268 @@
+
+deployments:
+  - name: inference
+    replicas: 1
+    containers:
+      - name: inference
+        image:
+          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
+          tag: demo-test-5
+        workingDir: /app
+        command:
+          # - sleep
+          # - infinity
+          - /opt/conda/bin/python
+          - -u
+          - /app/app.py
+        securityContext:
+          runAsUser: 57439
+          runAsGroup: 57439
+        ports:
+          - name: http
+            port: 5000
+            emissary:
+              host: test.host.com
+
+        startupProbe:
+          tcpSocket:
+            port: 5000
+          periodSeconds: 10
+          failureThreshold: 60  # 1min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 5000
+              # resources:
+statefulsets:
+  - name: heads
+    replicas: 1
+    persistence:
+      size: 1Gi
+      storageClassName: gp2
+      volumeMountPath: /data
+    initContainers:
+      - name: init-keys
+        image: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s:demo-test-5
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        command:
+          - /bin/sh
+          - -c
+          - |
+            KEYS_PATH="${APP_HOME}/keys"
+
+            if [ -d "$KEYS_PATH" ]; then
+              echo "Keys exist"
+            else
+              echo "Generating New Node Identity"
+              mkdir -p ${APP_HOME}/keys
+              cd $KEYS_PATH
+              /app/upshot-keys
+            fi
+        volumeMounts:
+          - name: heads-data
+            mountPath: /data
+        securityContext:
+          runAsUser: 1001
+    containers:
+      - name: head
+        image:
+          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
+          tag: demo-test-5
+        env:
+          - name: APP_HOME
+            value: "/data"
+          - name: NODE_ADDRESS
+            value: "http://appchain-rpc.appchain:26657"
+          - name: UPT_ACCOUNT_MNEMONIC
+            value: "palm key track hammer early love act cat area betray hedgehog breeze powder attitude month fancy visual october erosion example east result theme wasp"
+          - name: UPT_ACCOUNT_NAME
+            value: "upt"
+          - name: UPT_ACCOUNT_PASSPHRASE
+            value: ""
+        workingDir: /data
+        command:
+          # - sleep
+          # - infinity
+          - /app/upshot-node
+          - --role=head
+          - --peer-db=$(APP_HOME)/pdb
+          - --function-db=$(APP_HOME)/fdb
+          - --workspace=workspace
+          - --private-key=$(APP_HOME)/keys/priv.bin
+          - --log-level=debug
+          - --port=9010
+          - --rest-api=:6000
+          # # # - --dialback-address=""
+          # # # - --dialback-port=""
+          # # # - --boot-nodes=""
+        ports:
+          - name: api
+            type: ClusterIP
+            port: 6000
+            protocol: TCP
+          - name: p2p
+            type: ClusterIP
+            port: 9010
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 256m
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: 6000
+          periodSeconds: 10
+          failureThreshold: 6  # 1min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 6000
+
+  - name: workers
+    replicas: 1
+    persistence:
+      size: 1Gi
+      storageClassName: gp2
+      volumeMountPath: /data
+    initContainers:
+      - name: init-keys
+        image: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s:demo-test-5
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        command:
+          - /bin/sh
+          - -c
+          - |
+            KEYS_PATH="${APP_HOME}/keys"
+
+            if [ -d "$KEYS_PATH" ]; then
+              echo "Keys exist"
+            else
+              echo "Generating New Node Identity"
+              mkdir -p ${APP_HOME}/keys
+              cd $KEYS_PATH
+              /app/upshot-keys
+            fi
+        volumeMounts:
+          - name: workers-data
+            mountPath: /data
+        securityContext:
+          runAsUser: 1001
+      - name: wait-bootstrup-node    #! Do we need this step???????
+        image: alpine:latest
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -ex
+            apk add netcat-openbsd
+            while ! nc -z heads-0.heads 9010 </dev/null; do
+              echo "Waiting bootstrap node is up."
+              sleep 10;
+            done
+        securityContext:
+          runAsUser: 0
+    containers:
+      - name: worker
+        image:
+          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
+          tag: demo-test-5
+        env:
+          - name: APP_HOME
+            value: "/data"
+        workingDir: /data
+        env:
+          - name: INFERENCE_API_ADDRESS
+            value: "http://inference-api:5000"
+        command:
+          # - sleep
+          # - infinity
+          - /app/upshot-node
+          - --role=worker
+          - --peer-db=$(APP_HOME)/pdb
+          - --function-db=$(APP_HOME)/fdb
+          - --runtime-path=/app/runtime
+          - --runtime-cli=bls-runtime
+          - --workspace=workspace
+          - --private-key=/data/keys/priv.bin
+          - --log-level=debug
+          - --port=9010
+          - --boot-nodes="/dns4/heads-0.heads/tcp/9010/p2p/12D3KooWMpq8ZzGKoLPRp4LyRZ2F92XersKgXDQQgioxkmizjmDU"
+          # # # - --dialback-address=""
+          # # # - --dialback-port=""
+        ports:
+          - name: p2p
+            type: ClusterIP
+            port: 9010
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 256m
+            memory: 512Mi
+        startupProbe:
+          tcpSocket:
+            port: 9010
+          periodSeconds: 10
+          failureThreshold: 6  # 1min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 9010
+
+global:
+  fullnameOverride: mynode
+  serviceAccount:
+    create: true
+    name: coin-prediction-node
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::xxxxxxxxx:role/coin-prediction-node
+  securityContext:
+    fsGroup: 0
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroupChangePolicy: "Always"
+  # To update images with argocd-image-autoupdater
+  podAnnotations:
+    coin-prediction-node-b7s--tag: dev-latest   # Will be automatically updated to the latest tag
+    coin-prediction-node-micromamba--tag: dev-latest   # Will be automatically updated to the latest tag
+  imagePullPolicy: Always
+  additionalManifestsFromFolder: additional-manifests
+# Additional manifests to deploy as an array
+additionalManifests:
+  - kind: CronJob
+    apiVersion: batch/v1
+    metadata:
+      name: updater
+    spec:
+      schedule: "0 0 * * *"
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              serviceAccountName: coin-prediction-node
+              containers:
+              - name: updater
+                image:
+                  repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-micromamba
+                  tag: cb2d10dfe6f661f5c3a6302bb40f7d5486c2930a
+                imagePullPolicy: Always
+                workingDir: /app
+                env:
+                  - name: INFERENCE_API_ADDRESS
+                    value: "http://inference-api:5000"
+                command:
+                - /opt/conda/bin/python
+                - -u
+                - /app/update_app.py
+              securityContext:
+                runAsUser: 57439
+                runAsGroup: 57439
+              restartPolicy: OnFailure

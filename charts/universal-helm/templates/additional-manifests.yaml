@@ -1,6 +1,13 @@
-{{ range .Values.additionalManifests }}
+{{ range $.Values.additionalManifests }}
 ---
 {{ tpl (toYaml .) $ }}
 {{ end }}
-
-{{ tpl .Values.additionalYamlManifests . }}
+---
+{{ tpl $.Values.additionalYamlManifests $ }}
+---
+{{if $.Values.additionalManifestsFromFolder }}
+{{ range $path, $_ :=  $.Files.Glob  (printf "%s/*.yaml" $.Values.additionalManifestsFromFolder) }}
+{{ tpl ($.Files.Get $path) $ }}
+---
+{{ end }}
+{{ end }}
