@@ -1,4 +1,19 @@
 {{- range $kstfs, $sts := .Values.statefulsets }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "general.labels" $ | nindent 4 }}
+  name: {{$sts.name}}
+spec:
+  selector:
+    statefulsetname: {{ $sts.name }}
+  ports:
+    #! Headless service's port doesn't matter coz you addressing pod directly
+    - port: 12345
+  clusterIP: None
+
 {{- range $kcntnr, $cntnr := $sts.containers }}
 {{- range $kprt, $prt := $cntnr.ports }}
 {{$sname:=printf "%s-%s-%s" $sts.name $cntnr.name $prt.name}}
@@ -19,25 +34,6 @@ spec:
       protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
 
-{{if $prt.headless}}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    {{- include "general.labels" $ | nindent 4 }}
-  name: {{$sname}}-headless
-spec:
-  selector:
-    statefulsetname: {{ $sts.name }}
-  ports:
-    - port: {{ $prt.port }}
-      targetPort: {{ $prt.port }}
-      protocol: {{ default "TCP" $prt.protocol }}
-      name: {{ $prt.name }}
-  type: ClusterIP
-  clusterIP: None
-{{- end }} {{/* if $prt.headless */}}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -63,27 +59,6 @@ spec:
       targetPort: {{ $prt.port }}
       protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
-
-{{if $prt.headless}}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    {{- include "general.labels" $ | nindent 4 }}
-  name: {{$dname}}-headless
-spec:
-  selector:
-    deploymentname: {{ $dpl.name }}
-  ports:
-    - port: {{ $prt.port }}
-      targetPort: {{ $prt.port }}
-      protocol: {{ default "TCP" $prt.protocol }}
-      name: {{ $prt.name }}
-  type: ClusterIP
-  clusterIP: None
-{{- end }} {{/* if $prt.headless */}}
-
 {{- end }}
 {{- end }}
 {{- end }}
