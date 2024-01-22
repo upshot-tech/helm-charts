@@ -29,7 +29,7 @@ metadata:
   name: {{$sname}}-headless
 spec:
   selector:
-    deploymentname: {{ $sts.name }}
+    statefulsetname: {{ $sts.name }}
   ports:
     - port: {{ $prt.port }}
       targetPort: {{ $prt.port }}
