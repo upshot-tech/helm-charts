@@ -40,7 +40,7 @@ metadata:
 spec:
   {{- with $prt.emissary.headers }}
   headers:
-    {{ . }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   host: {{$prt.emissary.host}}
   prefix: {{default "/" $prt.emissary.prefix}}
