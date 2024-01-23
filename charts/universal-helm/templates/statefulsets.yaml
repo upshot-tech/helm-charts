@@ -194,7 +194,9 @@ spec:
         {{- end }}
 
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: {{ $volumeName }}
       spec:
         {{- if $sts.persistence.storageClassName }}
