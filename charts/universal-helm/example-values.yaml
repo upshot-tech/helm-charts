@@ -12,11 +12,10 @@ statefulsets:
     nodeSelector:
       node.kubernetes.io/instance-type: n2-standard-16
     persistence:
-      volumeClaimTemplates:
-        size: 350Gi
-        storageClassName: standard-rwo
-        volumeMountPath: /data
-        gcpVolumeSnapshot: polygon-mainnet-archival-heimdall-latest
+      size: 350Gi
+      storageClassName: standard-rwo
+      volumeMountPath: /data
+      gcpVolumeSnapshot: polygon-mainnet-archival-heimdall-latest
     initContainers:
       init-configs:
         image:
@@ -141,9 +140,6 @@ statefulsets:
     mountSecrets:
       - name: velas-entrypoint1
         mountPath: /data1
-        items:
-          - key: "config.json"
-            path: "config.json"
       - name: velas-entrypoint2
         mountPath: /data2
     initContainers:

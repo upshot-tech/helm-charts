@@ -1,22 +1,6 @@
 {{- range $stsi, $sts := $.Values.statefulsets }}
 {{- $volumeName := printf "%s-data" $sts.name }}
 
-#! TODO: Should be moved to the STS level (it copies files to the given path, and volumes are on STS level)
-#!       The same with secrets
-{{- $stsCMNames := list }}
-{{- range $cntnr := $sts.containers }}
-  {{- range $cm := $cntnr.mountConfigMaps }}
-    {{- $stsCMNames = append $stsCMNames $cm.name  }}
-  {{- end }}
-{{- end }}
-
-{{- $stsSecNames := list }}
-{{- range $cntnr := $sts.containers }}
-  {{- range $sec := $cntnr.mountSecrets }}
-    {{- $stsSecNames = append $stsSecNames $sec.name  }}
-  {{- end }}
-{{- end }}
-
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -71,43 +55,8 @@ spec:
       securityContext: {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      initContainers:
-      {{- range $kcntnr, $cntnr := $sts.containers }}
-      {{- if or $cntnr.mountConfigMaps $cntnr.mountSecrets }}
-      {{ $cmPref := "/cm" }}
-      {{ $secPref := "/sec" }}
-      - name: cp-configs
-        image: alpine:latest
-        workingDir: {{ $sts.persistence.volumeMountPath }}
-        command:
-          - 'sh'
-          - '-c'
-          - |
-            set -exu
-          {{- range $cm := (concat (default (list ) $cntnr.mountConfigMaps) (default (list ) $cntnr.mountSecrets)) }}
-            mkdir -p {{$cm.targetPath}}
-            cp -f /{{$cm.name}}/* {{$cm.targetPath}}
-          {{- end }}
-        volumeMounts:
-          - name: {{ $volumeName }}
-            mountPath: {{ $sts.persistence.volumeMountPath }}
-
-          # Volume mounts from mountConfigMaps
-          {{- range $cm := $cntnr.mountConfigMaps }}
-          - name: {{$cm.name}}
-            mountPath: /{{ $cm.name }}
-          {{- end }}
-
-          # Volume mounts from mountSecrets
-          {{- range $sec := $cntnr.mountSecrets }}
-          - name: {{$sec.name}}
-            mountPath: /{{ $sec.name }}
-            readOnly: true
-          {{- end }}
-      {{- end }}
-      {{- end }} #{{/* range $kcntnr, $cntnr := $sts.containers */}}
-
       {{- with $sts.initContainers }}
+      initContainers:
         {{- toYaml . | nindent 6 }}
       {{- end }}
 
@@ -166,6 +115,19 @@ spec:
             - name: {{ $volumeName }}
               mountPath: {{ $sts.persistence.volumeMountPath }}
 
+            # Volume mounts from mountConfigMaps
+            {{- range $cm := $cntnr.mountConfigMaps }}
+            - name: {{$cm.name}}
+              mountPath: {{ $cm.mountPath }}
+            {{- end }}
+
+            # Volume mounts from mountSecrets
+            {{- range $sec := $cntnr.mountSecrets }}
+            - name: {{$sec.name}}
+              mountPath: {{ $sec.mountPath }}
+              readOnly: true
+            {{- end }}
+
             {{- if $sts.persistence.extraPVC }}
             - name: extra-data
               mountPath: /extra-data
@@ -174,24 +136,29 @@ spec:
       {{- end }} # {{/* range $kcntnr, $cntnr := $sts.containers */}}
 
       volumes:
-        {{- range $cmn := $stsCMNames }}
-        - name: {{$cmn}}
-          configMap:
-            name: {{$cmn}}
-        {{- end }}
 
-        {{- range $secn := $stsSecNames }}
-        - name: {{$secn}}
+      {{- range $cntnr := $sts.containers }}
+        {{- range $cm := $cntnr.mountConfigMaps }}
+        - name: {{$cm.name}}
+          configMap:
+            name: {{$cm.name}}
+        {{- end }}
+      {{- end }}
+
+      {{- range $cntnr := $sts.containers }}
+        {{- range $sec := $cntnr.mountSecrets }}
+        - name: {{$sec.name}}
           secret:
-            secretName: {{$secn}}
+            secretName: {{$sec.name}}
             optional: false
         {{- end }}
+      {{- end }}
 
-        {{- if $sts.persistence.extraPVC }}
+      {{- if $sts.persistence.extraPVC }}
         - name: extra-data
           persistentVolumeClaim:
             claimName: {{ $sts.persistence.extraPVC }}
-        {{- end }}
+      {{- end }}
 
   volumeClaimTemplates:
     - apiVersion: v1

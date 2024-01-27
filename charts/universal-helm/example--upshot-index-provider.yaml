@@ -64,6 +64,14 @@ statefulsets:
             type: ClusterIP
             port: 9010
             protocol: TCP
+        mountConfigMaps:
+          - name: velas-entrypoint
+            mountPath: /dat0
+        mountSecrets:
+          - name: velas-entrypoint1
+            mountPath: /data1
+          - name: velas-entrypoint2
+            mountPath: /data2
         resources:
           limits:
             cpu: 1
@@ -141,6 +149,9 @@ statefulsets:
               secretKeyRef:
                 name: upshot-api-token
                 key: UPSHOT_API_TOKEN
+        mountSecrets:
+          - name: velas-entrypoint11
+            mountPath: /data11
         workingDir: /data
         command:
           # - sleep
