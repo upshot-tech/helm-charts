@@ -2,6 +2,9 @@
 deployments:
   - name: inference
     replicas: 1
+    securityContext:
+      runAsUser: 57439
+      runAsGroup: 57439
     containers:
       - name: inference
         image:
@@ -14,9 +17,6 @@ deployments:
           - /opt/conda/bin/python
           - -u
           - /app/app.py
-        securityContext:
-          runAsUser: 57439
-          runAsGroup: 57439
         ports:
           - name: http
             port: 5000
@@ -39,6 +39,9 @@ statefulsets:
       size: 1Gi
       storageClassName: gp2
       volumeMountPath: /data
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
     initContainers:
       - name: init-keys
         image: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s:demo-test-5
@@ -225,9 +228,9 @@ global:
     annotations:
       eks.amazonaws.com/role-arn: arn:aws:iam::xxxxxxxxx:role/coin-prediction-node
   securityContext:
-    fsGroup: 0
-    runAsUser: 0
-    runAsGroup: 0
+    fsGroup: 1001
+    runAsUser: 1001
+    runAsGroup: 1001
     fsGroupChangePolicy: "Always"
   # To update images with argocd-image-autoupdater
   podAnnotations:

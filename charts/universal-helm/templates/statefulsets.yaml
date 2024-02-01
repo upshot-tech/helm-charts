@@ -51,7 +51,7 @@ spec:
       topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- with $.Values.global.securityContext }}
+      {{- with (default $.Values.global.securityContext $sts.securityContext) }}
       securityContext: {{- toYaml . | nindent 8 }}
       {{- end }}
 
