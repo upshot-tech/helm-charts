@@ -103,12 +103,43 @@ spec:
           readinessProbe: {{- toYaml . | nindent 12 }}
           {{- end }}
 
-{{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
           volumeMounts:
+            {{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
             - name: {{ $volumeName }}
               mountPath: {{ $dpl.persistence.volumeMountPath }}
-{{- end }}{{ end }}
+            {{- end }}{{ end }}
+
+            # Volume mounts from mountConfigMaps
+            {{- range $cm := $cntnr.mountConfigMaps }}
+            - name: {{$cm.name}}
+              mountPath: {{ $cm.mountPath }}
+            {{- end }}
+
+            # Volume mounts from mountSecrets
+            {{- range $sec := $cntnr.mountSecrets }}
+            - name: {{$sec.name}}
+              mountPath: {{ $sec.mountPath }}
+              readOnly: true
+            {{- end }}
       {{- end }} # {{/* range $kcntnr, $cntnr := $dpl.containers */}}
+
+      volumes:
+      {{- range $cntnr := $sts.containers }}
+        {{- range $cm := $cntnr.mountConfigMaps }}
+        - name: {{$cm.name}}
+          configMap:
+            name: {{$cm.name}}
+        {{- end }}
+      {{- end }}
+
+      {{- range $cntnr := $sts.containers }}
+        {{- range $sec := $cntnr.mountSecrets }}
+        - name: {{$sec.name}}
+          secret:
+            secretName: {{$sec.name}}
+            optional: false
+        {{- end }}
+      {{- end }}
 
 {{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
   volumeClaimTemplates:
