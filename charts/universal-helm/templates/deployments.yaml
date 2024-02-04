@@ -124,7 +124,7 @@ spec:
       {{- end }} # {{/* range $kcntnr, $cntnr := $dpl.containers */}}
 
       volumes:
-      {{- range $cntnr := $sts.containers }}
+      {{- range $cntnr := $dpl.containers }}
         {{- range $cm := $cntnr.mountConfigMaps }}
         - name: {{$cm.name}}
           configMap:
@@ -132,7 +132,7 @@ spec:
         {{- end }}
       {{- end }}
 
-      {{- range $cntnr := $sts.containers }}
+      {{- range $cntnr := $dpl.containers }}
         {{- range $sec := $cntnr.mountSecrets }}
         - name: {{$sec.name}}
           secret:
