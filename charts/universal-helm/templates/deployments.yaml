@@ -109,35 +109,46 @@ spec:
               mountPath: {{ $dpl.persistence.volumeMountPath }}
             {{- end }}{{ end }}
 
-            # Volume mounts from mountConfigMaps
-            {{- range $cm := $cntnr.mountConfigMaps }}
-            - name: {{$cm.name}}
-              mountPath: {{ $cm.mountPath }}
+            {{- range $vol := $cntnr.extraVolumes }}
+            - name: {{default (default $vol.secretName $vol.configMap) $vol.persistentVolumeClaim}}
+              mountPath: {{$vol.mountPath}}
             {{- end }}
 
-            # Volume mounts from mountSecrets
-            {{- range $sec := $cntnr.mountSecrets }}
-            - name: {{$sec.name}}
-              mountPath: {{ $sec.mountPath }}
-              readOnly: true
-            {{- end }}
       {{- end }} # {{/* range $kcntnr, $cntnr := $dpl.containers */}}
 
       volumes:
-      {{- range $cntnr := $dpl.containers }}
-        {{- range $cm := $cntnr.mountConfigMaps }}
-        - name: {{$cm.name}}
+      {{- range $cntnr := $dpl.containers -}}
+        {{- range $vol := $cntnr.extraVolumes }}
+        {{- if hasKey $vol "secretName" }}
+        - name: {{$vol.secretName}}
+          secret:
+            secretName: {{$vol.secretName}}
+            optional: false
+        {{- else if hasKey $vol "configMap" }}
+        - name: {{$vol.configMap}}
           configMap:
-            name: {{$cm.name}}
+            name: {{$vol.configMap}}
+        {{- else if hasKey $vol "persistentVolumeClaim" }}
+        - name: {{$vol.persistentVolumeClaim}}
+          persistentVolumeClaim:
+            claimName: {{$vol.persistentVolumeClaim}}
+        {{- end }}
         {{- end }}
       {{- end }}
-
-      {{- range $cntnr := $dpl.containers }}
-        {{- range $sec := $cntnr.mountSecrets }}
-        - name: {{$sec.name}}
+      {{- range $vol := $dpl.persistence.extraVolumes }}
+        {{- if hasKey $vol "secretName" }}
+        - name: {{$vol.secretName}}
           secret:
-            secretName: {{$sec.name}}
+            secretName: {{$vol.secretName}}
             optional: false
+        {{- else if hasKey $vol "configMap" }}
+        - name: {{$vol.configMap}}
+          configMap:
+            name: {{$vol.configMap}}
+        {{- else if hasKey $vol "persistentVolumeClaim" }}
+        - name: {{$vol.persistentVolumeClaim}}
+          persistentVolumeClaim:
+            claimName: {{$vol.persistentVolumeClaim}}
         {{- end }}
       {{- end }}
 
