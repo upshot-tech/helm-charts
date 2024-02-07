@@ -64,14 +64,21 @@ statefulsets:
             type: ClusterIP
             port: 9010
             protocol: TCP
-        mountConfigMaps:
-          - name: velas-entrypoint
-            mountPath: /dat0
-        mountSecrets:
-          - name: velas-entrypoint1
-            mountPath: /data1
-          - name: velas-entrypoint2
-            mountPath: /data2
+        # mountConfigMaps:
+        #   - name: velas-entrypoint
+        #     mountPath: /dat0
+        # mountSecrets:
+        #   - name: velas-entrypoint1
+        #     mountPath: /data1
+        #   - name: velas-entrypoint2
+        #     mountPath: /data2
+
+        extraVolumes:
+          - name: secret-name1
+            mountPath: /ffffff
+            secret:
+              secretName: secret-name1111
+              optional: false
         resources:
           limits:
             cpu: 1
@@ -94,6 +101,13 @@ statefulsets:
       size: 1Gi
       storageClassName: gp2
       volumeMountPath: /data
+      extraVolumes:
+        - secretName: secret-name1
+          mountPath: /ffffff
+        - configMap: cm-name1
+          mountPath: /ffffff
+        - persistentVolumeClaim: pvc-name1
+          mountPath: /ffffff
     initContainers:
       - name: init-keys
         image: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging:dev-latest
@@ -141,6 +155,11 @@ statefulsets:
         image:
           repository: 696230526504.dkr.ecr.us-east-1.amazonaws.com/index-provider-staging
           tag: dev-latest
+        extraVolumes:
+          - secretName: secret-name2
+            mountPath: /ffffff222
+          - configMap: cm-name2
+            mountPath: /ffffff222
         env:
           - name: APP_HOME
             value: "/data"

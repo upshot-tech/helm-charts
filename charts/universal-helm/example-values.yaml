@@ -68,8 +68,8 @@ statefulsets:
           - name: GENESIS_FILE
             value: "/data/config/genesis.json"
         envFrom:
-        - secretRef:
-            name: some-secret
+          - secretRef:
+              name: some-secret
         command:
           - heimdalld
           - --home=/data
@@ -142,6 +142,7 @@ statefulsets:
         mountPath: /data1
       - name: velas-entrypoint2
         mountPath: /data2
+
     initContainers:
       - name: download-snapshot
         image:

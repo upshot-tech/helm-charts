@@ -128,15 +128,13 @@ spec:
               readOnly: true
             {{- end }}
 
-            {{- if $sts.persistence.extraPVC }}
-            - name: extra-data
-              mountPath: /extra-data
+            {{- range $vol := $cntnr.extraVolumes }}
+            - name: {{default (default $vol.secretName $vol.configMap) $vol.persistentVolumeClaim}}
+              mountPath: {{$vol.mountPath}}
             {{- end }}
-
       {{- end }} # {{/* range $kcntnr, $cntnr := $sts.containers */}}
 
       volumes:
-
       {{- range $cntnr := $sts.containers }}
         {{- range $cm := $cntnr.mountConfigMaps }}
         - name: {{$cm.name}}
@@ -154,12 +152,40 @@ spec:
         {{- end }}
       {{- end }}
 
-      {{- if $sts.persistence.extraPVC }}
-        - name: extra-data
+      {{- range $cntnr := $sts.containers -}}
+        {{- range $vol := $cntnr.extraVolumes }}
+        {{- if hasKey $vol "secretName" }}
+        - name: {{$vol.secretName}}
+          secret:
+            secretName: {{$vol.secretName}}
+            optional: false
+        {{- else if hasKey $vol "configMap" }}
+        - name: {{$vol.configMap}}
+          configMap:
+            name: {{$vol.configMap}}
+        {{- else if hasKey $vol "persistentVolumeClaim" }}
+        - name: {{$vol.persistentVolumeClaim}}
           persistentVolumeClaim:
-            claimName: {{ $sts.persistence.extraPVC }}
+            claimName: {{$vol.persistentVolumeClaim}}
+        {{- end }}
+        {{- end }}
       {{- end }}
-
+      {{- range $vol := $sts.persistence.extraVolumes }}
+        {{- if hasKey $vol "secretName" }}
+        - name: {{$vol.secretName}}
+          secret:
+            secretName: {{$vol.secretName}}
+            optional: false
+        {{- else if hasKey $vol "configMap" }}
+        - name: {{$vol.configMap}}
+          configMap:
+            name: {{$vol.configMap}}
+        {{- else if hasKey $vol "persistentVolumeClaim" }}
+        - name: {{$vol.persistentVolumeClaim}}
+          persistentVolumeClaim:
+            claimName: {{$vol.persistentVolumeClaim}}
+        {{- end }}
+      {{- end }}
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
