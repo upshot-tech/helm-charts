@@ -170,6 +170,7 @@ spec:
         {{- end }}
         {{- end }}
       {{- end }}
+      {{- if $sts.persistence}}{{- if $sts.persistence.extraVolumes}}
       {{- range $vol := $sts.persistence.extraVolumes }}
         {{- if hasKey $vol "secretName" }}
         - name: {{$vol.secretName}}
@@ -186,6 +187,7 @@ spec:
             claimName: {{$vol.persistentVolumeClaim}}
         {{- end }}
       {{- end }}
+      {{- end }}{{- end }}
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim

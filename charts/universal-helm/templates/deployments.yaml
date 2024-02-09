@@ -135,6 +135,7 @@ spec:
         {{- end }}
         {{- end }}
       {{- end }}
+      {{- if $dpl.persistence}}{{- if $dpl.persistence.extraVolumes}}
       {{- range $vol := $dpl.persistence.extraVolumes }}
         {{- if hasKey $vol "secretName" }}
         - name: {{$vol.secretName}}
@@ -151,6 +152,7 @@ spec:
             claimName: {{$vol.persistentVolumeClaim}}
         {{- end }}
       {{- end }}
+      {{- end }}{{- end }}
 
 {{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
   volumeClaimTemplates:
