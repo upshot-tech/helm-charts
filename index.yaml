@@ -1,5 +1,17 @@
 apiVersion: v1
 entries:
+  pgo:
+  - apiVersion: v2
+    appVersion: 5.5.0
+    created: "2024-02-19T23:54:01.745273921Z"
+    description: Installer for PGO, the open source Postgres Operator from Crunchy
+      Data
+    digest: ca59af3c1233df01864094f35724c9f43253791e0d81184339bf401634fbe90c
+    name: pgo
+    type: application
+    urls:
+    - https://github.com/upshot-tech/helm-charts/releases/download/pgo-5.5.0/pgo-5.5.0.tgz
+    version: 5.5.0
   universal-helm:
   - apiVersion: v2
     created: "2024-02-19T23:35:52.062328871Z"
@@ -253,4 +265,4 @@ entries:
     urls:
     - https://github.com/upshot-tech/helm-charts/releases/download/universal-helm-0.3.8/universal-helm-0.3.8.tgz
     version: 0.3.8
-generated: "2024-02-19T23:35:52.062457994Z"
+generated: "2024-02-19T23:54:01.745333512Z"
