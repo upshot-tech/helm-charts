@@ -1,122 +1,42 @@
-
 deployments:
-  - name: inference
-    persistence:
-      # size: 1Gi
-      # storageClassName: gp2
-      # volumeMountPath: /data
-      extraVolumes:
-        - secretName: secret-name1
-        - configMap: cm-name1
-        - persistentVolumeClaim: pvc-name1
-    replicas: 1
-    securityContext:
-      runAsUser: 57439
-      runAsGroup: 57439
-    containers:
-      - name: inference
-        image:
-          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
-          tag: demo-test-5
-        workingDir: /app
-        command:
-          # - sleep
-          # - infinity
-          - /opt/conda/bin/python
-          - -u
-          - /app/app.py
-        ports:
-          - name: http
-            port: 5000
-            emissary:
-              host: test.host.com
-
-        startupProbe:
-          tcpSocket:
-            port: 5000
-          periodSeconds: 10
-          failureThreshold: 60  # 1min to startup
-        livenessProbe:
-          tcpSocket:
-            port: 5000
-              # resources:
-statefulsets:
-  - name: heads
+  - name: faucets
     replicas: 1
     persistence:
       size: 1Gi
       storageClassName: gp2
       volumeMountPath: /data
-    securityContext:
-      runAsUser: 0
-      runAsGroup: 0
-    initContainers:
-      - name: init-keys
-        image: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s:demo-test-5
-        env:
-          - name: APP_HOME
-            value: "/data"
-        workingDir: /data
-        command:
-          - /bin/sh
-          - -c
-          - |
-            KEYS_PATH="${APP_HOME}/keys"
-
-            if [ -d "$KEYS_PATH" ]; then
-              echo "Keys exist"
-            else
-              echo "Generating New Node Identity"
-              mkdir -p ${APP_HOME}/keys
-              cd $KEYS_PATH
-              /app/upshot-keys
-            fi
-        volumeMounts:
-          - name: heads-data
-            mountPath: /data
-        securityContext:
-          runAsUser: 1001
     containers:
-      - name: head
+      - name: faucet
         image:
-          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
-          tag: demo-test-5
+          repository: 696230526504.dkr.ecr.us-east-1.amazonaws.com/allora-faucet
+          tag: latest
         env:
-          - name: APP_HOME
+          - name: DATA_DIR
             value: "/data"
-          - name: NODE_ADDRESS
-            value: "http://appchain-rpc.appchain:26657"
-          - name: UPT_ACCOUNT_MNEMONIC
-            value: "palm key track hammer early love act cat area betray hedgehog breeze powder attitude month fancy visual october erosion example east result theme wasp"
-          - name: UPT_ACCOUNT_NAME
-            value: "upt"
-          - name: UPT_ACCOUNT_PASSPHRASE
-            value: ""
-        workingDir: /data
+          - name: SECRET_DIR
+            value: "/faucet/secret"
+          - name: CONFIG_DIR
+            value: "/faucet/config"
+        # workingDir: /data
+        extraVolumes:
+          - secretName: devnet-faucet--faucet-0--allora-account-mnemonic
+            mountPath: /faucet/secret
+          - configMap: faucet-config
+            mountPath: /faucet/config
         command:
           # - sleep
           # - infinity
-          - /app/upshot-node
-          - --role=head
-          - --peer-db=$(APP_HOME)/pdb
-          - --function-db=$(APP_HOME)/fdb
-          - --workspace=workspace
-          - --private-key=$(APP_HOME)/keys/priv.bin
-          - --log-level=debug
-          - --port=9010
-          - --rest-api=:6000
-          # # # - --dialback-address=""
-          # # # - --dialback-port=""
-          # # # - --boot-nodes=""
+          - node
+          - --es-module-specifier-resolution=node
+          - faucet.js
+
         ports:
           - name: api
-            type: ClusterIP
-            port: 6000
-            protocol: TCP
-          - name: p2p
-            type: ClusterIP
-            port: 9010
-            protocol: TCP
+            port: 8000
+            emissary:
+              host: release-name.staging-us-east-1.behindthecurtain.xyz
+              # headers:
+              #   Authorization: 'Basic dXBzaG90OlI5N2ZXOWVMOWQ5'
         resources:
           limits:
             cpu: 1
@@ -126,154 +46,231 @@ statefulsets:
             memory: 512Mi
         startupProbe:
           tcpSocket:
-            port: 6000
+            port: 8000
           periodSeconds: 10
           failureThreshold: 6  # 1min to startup
         livenessProbe:
           tcpSocket:
-            port: 6000
-
-  - name: workers
-    replicas: 1
-    persistence:
-      size: 1Gi
-      storageClassName: gp2
-      volumeMountPath: /data
-    initContainers:
-      - name: init-keys
-        image: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s:demo-test-5
-        env:
-          - name: APP_HOME
-            value: "/data"
-        workingDir: /data
-        command:
-          - /bin/sh
-          - -c
-          - |
-            KEYS_PATH="${APP_HOME}/keys"
-
-            if [ -d "$KEYS_PATH" ]; then
-              echo "Keys exist"
-            else
-              echo "Generating New Node Identity"
-              mkdir -p ${APP_HOME}/keys
-              cd $KEYS_PATH
-              /app/upshot-keys
-            fi
-        volumeMounts:
-          - name: workers-data
-            mountPath: /data
-        securityContext:
-          runAsUser: 1001
-      - name: wait-bootstrup-node    #! Do we need this step???????
-        image: alpine:latest
-        command:
-          - /bin/sh
-          - -c
-          - |
-            set -ex
-            apk add netcat-openbsd
-            while ! nc -z heads-0.heads 9010 </dev/null; do
-              echo "Waiting bootstrap node is up."
-              sleep 10;
-            done
-        securityContext:
-          runAsUser: 0
-    containers:
-      - name: worker
-        image:
-          repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-b7s
-          tag: demo-test-5
-        env:
-          - name: APP_HOME
-            value: "/data"
-        workingDir: /data
-        env:
-          - name: INFERENCE_API_ADDRESS
-            value: "http://inference-api:5000"
-        command:
-          # - sleep
-          # - infinity
-          - /app/upshot-node
-          - --role=worker
-          - --peer-db=$(APP_HOME)/pdb
-          - --function-db=$(APP_HOME)/fdb
-          - --runtime-path=/app/runtime
-          - --runtime-cli=bls-runtime
-          - --workspace=workspace
-          - --private-key=/data/keys/priv.bin
-          - --log-level=debug
-          - --port=9010
-          - --boot-nodes="/dns4/heads-0.heads/tcp/9010/p2p/12D3KooWMpq8ZzGKoLPRp4LyRZ2F92XersKgXDQQgioxkmizjmDU"
-          # # # - --dialback-address=""
-          # # # - --dialback-port=""
-        ports:
-          - name: p2p
-            type: ClusterIP
-            port: 9010
-            protocol: TCP
-        resources:
-          limits:
-            cpu: 1
-            memory: 1Gi
-          requests:
-            cpu: 256m
-            memory: 512Mi
-        startupProbe:
-          tcpSocket:
-            port: 9010
-          periodSeconds: 10
-          failureThreshold: 6  # 1min to startup
-        livenessProbe:
-          tcpSocket:
-            port: 9010
-
+            port: 8000
 global:
-  fullnameOverride: mynode
+  fullnameOverride: release-name
   serviceAccount:
-    create: true
-    name: coin-prediction-node
-    annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::xxxxxxxxx:role/coin-prediction-node
+    name: node
   securityContext:
     fsGroup: 1001
     runAsUser: 1001
     runAsGroup: 1001
     fsGroupChangePolicy: "Always"
+  emissary:
+    tlsSecret:
+      name: wildcard--staging-us-east-1--behindthecurtain--xyz
+      namespace: emissary-ingress
   # To update images with argocd-image-autoupdater
   podAnnotations:
-    coin-prediction-node-b7s--tag: dev-latest   # Will be automatically updated to the latest tag
-    coin-prediction-node-micromamba--tag: dev-latest   # Will be automatically updated to the latest tag
+    allora-faucet--tag: latest   # Will be automatically updated to the latest tag
   imagePullPolicy: Always
-  additionalManifestsFromFolder: additional-manifests
+
 # Additional manifests to deploy as an array
 additionalManifests:
-  - kind: CronJob
-    apiVersion: batch/v1
+
+  - kind: ConfigMap
+    apiVersion: v1
     metadata:
-      name: updater
+      name: faucet-config
+    data:
+      config.js: |
+        import { stringToPath } from '@cosmjs/crypto'
+        import fs from 'fs'
+        import { Wallet, utils } from 'ethers';
+
+        const mnemonic_path= './secret/devnet-faucet--faucet-0--allora-account-mnemonic'
+        const mnemonic = fs.readFileSync(mnemonic_path, 'utf8')
+        console.log("==================================================================")
+        console.log(`faucet mnemonic: ${mnemonic.substring(1, 15)} ...`)
+
+        export default {
+
+          "port": 8000,  // http port
+          "db": {
+              "path": `${process.env.DATA_DIR}/faucet.db` // db for frequency checker(WIP)
+          },
+          "project": {
+              "name": "Allora DEVnet", // What ever you want, recommend: chain-id, 
+              "logo": "https://allora.network/images/allora/allora_logo.svg",
+              "deployer": '<a href="https://allora.network">Allora</a>'
+          },
+          blockchains: [
+            {
+              name: "allora-devnet",
+              endpoint: {
+                  // make sure that CORS is enabled in rpc section in config.toml
+                  // cors_allowed_origins = ["*"]
+                  rpc_endpoint: "http://allorad-allorad-rpc.devnet-validators:26657",
+              },
+              sender: {
+                  mnemonic,
+                  option: {
+                      hdPaths: [stringToPath("m/44'/118'/0'/0/0")],
+                      prefix: "allo" // human readable address prefix
+                  }
+              },
+              tx: {
+                  amount: [
+                    { denom: "uallo", amount: "1000000000" },
+                  ],
+                  fee: {
+                      amount: [{ denom: "uallo", amount: "500" }],
+                      gas: "200000",
+                  },
+              },
+              limit: {
+                  // how many times each wallet address is allowed in a window(24h)
+                  address: 3,
+                  // how many times each ip is allowed in a window(24h),
+                  // if you use proxy, double check if the req.ip is return client's ip.
+                  ip: 10
+              }
+            },
+          ]
+        }
+
+
+
+  
+  
+  # Shorten awsName
+  
+  
+  
+  - apiVersion: iam.aws.crossplane.io/v1beta1
+    kind: Policy
+    metadata:
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+      annotations:
+        argocd.argoproj.io/sync-options: Replace=true # To avoid config drift, fully re-creating the resources
+        argocd.argoproj.io/sync-options: Force=true
     spec:
-      schedule: "0 0 * * *"
-      jobTemplate:
-        spec:
-          template:
-            spec:
-              serviceAccountName: coin-prediction-node
-              containers:
-              - name: updater
-                image:
-                  repository: xxxxxxxxx.dkr.ecr.us-east-1.amazonaws.com/coin-prediction-node-micromamba
-                  tag: cb2d10dfe6f661f5c3a6302bb40f7d5486c2930a
-                imagePullPolicy: Always
-                workingDir: /app
-                env:
-                  - name: INFERENCE_API_ADDRESS
-                    value: "http://inference-api:5000"
-                command:
-                - /opt/conda/bin/python
-                - -u
-                - /app/update_app.py
-              securityContext:
-                runAsUser: 57439
-                runAsGroup: 57439
-              restartPolicy: OnFailure
+      providerConfigRef:
+        name: aws-provider
+      forProvider:
+        name: stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+        tags:
+          - key: deployedWith
+            value: crossplane
+        document: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "secretsmanager:BatchGetSecretValue",
+                  "secretsmanager:ListSecrets"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "secretsmanager:GetResourcePolicy",
+                  "secretsmanager:GetSecretValue",
+                  "secretsmanager:DescribeSecret",
+                  "secretsmanager:ListSecretVersionIds"
+                ],
+                "Resource": [
+                  "arn:aws:secretsmanager:us-east-1:696230526504:secret:*"
+                ]
+              }
+            ]
+          }
+  
+  - apiVersion: iam.aws.crossplane.io/v1beta1
+    kind: Role
+    metadata:
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+      annotations:
+        crossplane.io/external-name: stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+        argocd.argoproj.io/sync-options: Replace=true     # To avoid config drift, fully re-creating the resources
+        argocd.argoproj.io/sync-options: Force=true
+    spec:
+      providerConfigRef:
+        name: aws-provider
+      forProvider:
+        tags:
+          - key: deployedWith
+            value: crossplane
+        assumeRolePolicyDocument: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "arn:aws:iam::696230526504:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/4B543326CFC013890BEC0890484AC21A"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "oidc.eks.us-east-1.amazonaws.com/id/4B543326CFC013890BEC0890484AC21A:sub": "system:serviceaccount:release-name:devnet-faucet--faucet-0--allora-account-mnemonic"
+                  }
+                }
+              }
+            ]
+          }
+  
+  - apiVersion: iam.aws.crossplane.io/v1beta1
+    kind: RolePolicyAttachment
+    metadata:
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+      annotations:
+        crossplane.io/external-name: stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+        argocd.argoproj.io/sync-options: Replace=true      # To avoid config drift, fully re-creating the resources
+        argocd.argoproj.io/sync-options: Force=true
+    spec:
+      providerConfigRef:
+        name: aws-provider
+      forProvider:
+        policyArn: arn:aws:iam::696230526504:policy/stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+        roleName: stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+        roleNameRef:
+          name: stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+  
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::696230526504:role/stg1--release-na--devnet-faucet--faucet-0--allora-account-mnemo
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+  
+  - kind: SecretStore
+    apiVersion: external-secrets.io/v1beta1
+    metadata:
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: us-east-1
+          auth:
+            jwt:
+              serviceAccountRef:
+                name: devnet-faucet--faucet-0--allora-account-mnemonic
+
+  - kind: ExternalSecret
+    apiVersion: external-secrets.io/v1beta1
+    metadata:
+      name: devnet-faucet--faucet-0--allora-account-mnemonic
+    spec:
+      refreshInterval: "60s"
+      secretStoreRef:
+        name: devnet-faucet--faucet-0--allora-account-mnemonic
+        kind: SecretStore
+      target:
+        name: devnet-faucet--faucet-0--allora-account-mnemonic
+        deletionPolicy: "Delete"
+      dataFrom:
+        - find:
+            conversionStrategy: Default
+            decodingStrategy: None
+            name:
+              regexp: "devnet-faucet--faucet-0--allora-account-mnemonic"

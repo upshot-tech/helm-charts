@@ -104,11 +104,6 @@ spec:
           {{- end }}
 
           volumeMounts:
-            {{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
-            - name: {{ $volumeName }}
-              mountPath: {{ $dpl.persistence.volumeMountPath }}
-            {{- end }}{{ end }}
-
             {{- range $vol := $cntnr.extraVolumes }}
             - name: {{default (default $vol.secretName $vol.configMap) $vol.persistentVolumeClaim}}
               mountPath: {{$vol.mountPath}}
@@ -153,25 +148,4 @@ spec:
         {{- end }}
       {{- end }}
       {{- end }}{{- end }}
-
-{{- if $dpl.persistence }} {{ if $dpl.persistence.size}}
-  volumeClaimTemplates:
-    - metadata:
-        name: {{ $volumeName }}
-      spec:
-        {{- if $dpl.persistence.storageClassName }}
-        storageClassName: {{ $dpl.persistence.storageClassName }}
-        {{- end }}
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: {{ $dpl.persistence.size | quote }}
-        {{- if $dpl.persistence.gcpVolumeSnapshot }}
-        dataSource:
-          name: {{ $dpl.persistence.gcpVolumeSnapshot | quote }}
-          kind: VolumeSnapshot
-          apiGroup: snapshot.storage.k8s.io
-        {{- end }}
-{{- end }}{{ end }}
 {{ end }} # {{/* range $dpli, $dpl := $.Values.statefulsets */}}
