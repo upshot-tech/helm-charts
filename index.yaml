@@ -14,6 +14,20 @@ entries:
     version: 5.5.0
   universal-helm:
   - apiVersion: v2
+    created: "2024-04-03T18:44:20.413056189Z"
+    description: A Helm chart for Kubernetes
+    digest: 4849b36321d6555531c15bdd6823eaa98204fefcc186c10bb24d3629c074d9b0
+    keywords:
+    - blockchain
+    - web3
+    maintainers:
+    - email: vlad@upshot.xyz
+    name: universal-helm
+    type: application
+    urls:
+    - https://github.com/upshot-tech/helm-charts/releases/download/universal-helm-0.6.5/universal-helm-0.6.5.tgz
+    version: 0.6.5
+  - apiVersion: v2
     created: "2024-02-19T23:35:52.062328871Z"
     description: A Helm chart for Kubernetes
     digest: 5ed98a195643dd6eab2f91298d2b7b8f5dbfb099a1e947afdcf32439b46fc5ce
@@ -265,4 +279,4 @@ entries:
     urls:
     - https://github.com/upshot-tech/helm-charts/releases/download/universal-helm-0.3.8/universal-helm-0.3.8.tgz
     version: 0.3.8
-generated: "2024-02-19T23:54:01.745333512Z"
+generated: "2024-04-03T18:44:20.413187444Z"
