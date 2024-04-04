@@ -8,7 +8,8 @@ keywords:
 
 maintainers:
   - email: vlad@upshot.xyz
+  - email: tobi@upshot.xyz
 
 type: application
 
-version: 0.6.5
+version: 0.6.6
