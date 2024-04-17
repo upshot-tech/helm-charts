@@ -1,3 +1,6 @@
 [submodule "modules/postgres-operator-examples"]
 	path = modules/postgres-operator-examples
 	url = git@github.com:CrunchyData/postgres-operator-examples.git
+[submodule "modules/karpenter-provider-aws"]
+	path = modules/karpenter-provider-aws
+	url = git@github.com:aws/karpenter-provider-aws.git
