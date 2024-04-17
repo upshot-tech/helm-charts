@@ -101,6 +101,7 @@ deployments:
 
 global:
   serviceAccount:
+    create: false
     name: "pokt-middleware"
     annotations:
       eks.amazonaws.com/role-arn: arn:aws:iam::22222222:role/cert-manager-staging-us-east-1
