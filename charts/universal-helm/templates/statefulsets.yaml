@@ -92,6 +92,10 @@ spec:
           lifecycle: {{- toYaml . | nindent 12 }}
           {{- end }}
 
+          {{- with (default (list ) $cntnr.securityContext) }}
+          securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
+
           ports:
           {{- range $kprt, $prt := $cntnr.ports }}
             - name: {{ $prt.name}}
