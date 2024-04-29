@@ -1,0 +1,222 @@
+statefulsets:
+  - name: validator
+    replicas: 1
+    persistence:
+      size: 500Gi
+      storageClassName: gp2
+      volumeMountPath: /data
+      extraVolumes:
+        - secretName: allora-account
+        - secretName: priv-validator-key
+        - secretName: node-key
+    initContainers:
+      - name: init-keys-allora
+        image: alloranetwork/allora-chain:v0.0.10
+        env:
+          - name: APP_HOME
+            value: "/data"
+          - name: SECRETS_DIR
+            value: "/keys"
+          - name: GENESIS_FILE
+            value: "/data/config/genesis.json"
+          - name: GENESIS_URL
+            value: "https://raw.githubusercontent.com/allora-network/networks/main/testnet/genesis.json"
+        workingDir: /data
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -ex
+
+            #* Add genesis
+            if [ ! -f $GENESIS_FILE ]; then
+              echo "Genesis not exist, downloading it."
+              mkdir -p $(dirname $GENESIS_FILE)
+              curl $GENESIS_URL -o $GENESIS_FILE
+            fi
+
+            #* Import validator-0 account
+            SECRET_NAME="prod-us-east-1--testnet-validators--validator-1--allora-account"
+            ACCOUNT_NAME=validator-1
+            KEYRING_BACKEND=test    #! It's safe to use "test" backend, while we deliver secrets securaly
+
+            if allorad keys --home=${APP_HOME} --keyring-backend $KEYRING_BACKEND show $ACCOUNT_NAME >/dev/null 2>&1 ; then
+              echo "$ACCOUNT_NAME - account already imported"
+            else
+              echo "Importing account $ACCOUNT_NAME from AWS secret: $SECRET_NAME"
+              ALLORA_KEY_EXPORT=$(cat ${SECRETS_DIR}/$SECRET_NAME)
+              allorad keys import-hex \
+                --home=${APP_HOME} \
+                --keyring-backend $KEYRING_BACKEND \
+                $ACCOUNT_NAME $ALLORA_KEY_EXPORT
+            fi
+
+            #* Import priv_validator_key.json
+            SECRET_NAME="prod-us-east-1--testnet-validators--validator-1--priv_validator_key"
+            cat /pkeys/$SECRET_NAME > ${APP_HOME}/config/priv_validator_key.json
+
+            #* Import node_key.json
+            SECRET_NAME="prod-us-east-1--testnet-validators--validator-1--node_key"
+            cat /nkeys/$SECRET_NAME > ${APP_HOME}/config/node_key.json
+
+            #* Init priv_validator_state
+            if [ ! -f ${APP_HOME}/data/priv_validator_state.json ]; then
+              echo '{"height":"0","round":0,"step":0}' > data/priv_validator_state.json
+            fi
+
+            #* Adjust configs
+            #* Enable prometheus metrics
+            dasel put -t bool -v true 'instrumentation.prometheus' -f ${APP_HOME}/config/config.toml
+
+            #* Configure allorad client
+            CLIENT_FILE="${APP_HOME}/config/client.toml"
+            CLIENT_CHAIN_ID=$(grep '^chain-id' $CLIENT_FILE | awk -F'= ' '{print $2}' | tr -d '"')
+            KEYRING_SYMLINK=${APP_HOME}/.allorad/keyring-test
+
+            if [ "$CLIENT_CHAIN_ID" = "{{.rootValues.chainId}}" ] && [ -h "$KEYRING_SYMLINK" ]; then
+              echo "Client already configured for this validator"
+            else
+              allorad --home=${APP_HOME} config set client chain-id {{.rootValues.chainId}}
+              allorad --home=${APP_HOME} config set client keyring-backend $KEYRING_BACKEND
+
+              ln -sf ${APP_HOME}/config/client.toml ${APP_HOME}/.allorad/config/client.toml
+              ln -sf ${APP_HOME}/keyring-test $KEYRING_SYMLINK
+            fi
+
+        securityContext:
+          runAsUser: 1001
+        volumeMounts:
+          - name: validator-data
+            mountPath: /data
+          - mountPath: /keys
+            name: allora-account
+            readOnly: true
+          - mountPath: /pkeys
+            name: priv-validator-key
+            readOnly: true
+          - mountPath: /nkeys
+            name: node-key
+            readOnly: true
+    containers:
+      - name: allorad
+        image:
+          repository: alloranetwork/allora-chain
+          tag: v0.0.10
+        workingDir: /data
+        env:
+          - name: PEERS
+            value: "_PEERS_LIST_"
+        command:
+          - allorad
+          - --home=/data
+          - start
+          - --moniker=validator-1
+          - --minimum-gas-prices=0allo
+          - --log_level=debug
+          - --p2p.persistent_peers=$(PEERS)
+          - --p2p.pex=false
+
+        ports:
+          - name: p2p
+            port: 26656
+          - name: metrics
+            port: 26660
+        resources:
+          limits:
+            cpu: 1
+            memory: 4Gi
+          requests:
+            cpu: 256m
+            memory: 2.3Gi
+        startupProbe:
+          tcpSocket:
+            port: 26656
+          periodSeconds: 10
+          failureThreshold: 12  # 2min to startup
+        livenessProbe:
+          tcpSocket:
+            port: 26656
+
+global:
+  fullnameOverride: validator-1
+  serviceAccount:
+    create: true
+    name: appchain
+  securityContext:
+    fsGroup: 1001
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroupChangePolicy: Always
+  imagePullPolicy: Always
+
+# Additional manifests to deploy as an array
+additionalManifests:
+  - kind: VMPodScrape
+    apiVersion: operator.victoriametrics.com/v1beta1
+    metadata:
+      name: validator-1
+    spec:
+      podMetricsEndpoints:
+        - port: metrics
+          path: /metrics
+          scheme: http
+      selector:
+        matchLabels:
+          statefulsetname: validator
+
+  - kind: ExternalSecret
+    apiVersion: external-secrets.io/v1beta1
+    metadata:
+      name: allora-account
+    spec:
+      refreshInterval: "60s"
+      secretStoreRef:
+        name: "validator-1--validator-1"
+        kind: SecretStore
+      target:
+        name: allora-account
+        deletionPolicy: "Delete"
+      dataFrom:
+        - find:
+            conversionStrategy: Default
+            decodingStrategy: None
+            name:
+              regexp: "prod-us-east-1--testnet-validators--validator-1--allora-account"
+
+  - kind: ExternalSecret
+    apiVersion: external-secrets.io/v1beta1
+    metadata:
+      name: priv-validator-key
+    spec:
+      refreshInterval: "60s"
+      secretStoreRef:
+        name: "validator-1--validator-1"
+        kind: SecretStore
+      target:
+        name: priv-validator-key
+        deletionPolicy: "Delete"
+      dataFrom:
+        - find:
+            conversionStrategy: Default
+            decodingStrategy: None
+            name:
+              regexp: "prod-us-east-1--testnet-validators--validator-1--priv_validator_key"
+
+  - kind: ExternalSecret
+    apiVersion: external-secrets.io/v1beta1
+    metadata:
+      name: node-key
+    spec:
+      refreshInterval: "60s"
+      secretStoreRef:
+        name: "validator-1--validator-1"
+        kind: SecretStore
+      target:
+        name: node-key
+        deletionPolicy: "Delete"
+      dataFrom:
+        - find:
+            conversionStrategy: Default
+            decodingStrategy: None
+            name:
+              regexp: "prod-us-east-1--testnet-validators--validator-1--node_key"
