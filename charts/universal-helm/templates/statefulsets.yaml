@@ -100,7 +100,7 @@ spec:
           {{- range $kprt, $prt := $cntnr.ports }}
             - name: {{ $prt.name}}
               protocol: {{ default "TCP" $prt.protocol }}
-              containerPort: {{ $prt.port }}
+              containerPort: {{ default $prt.port $prt.targetPort }}
           {{- end }}
 
           {{- with (default (list ) $cntnr.startupProbe) }}
