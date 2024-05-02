@@ -33,8 +33,8 @@ spec:
     statefulsetname: {{ $sts.name }}
   type: {{ default "ClusterIP" $prt.type }}
   ports:
-    - port: {{ $prt.port }}
-      targetPort: {{ $prt.port }}
+    - port: {{ default $prt.port $prt.servicePort }}
+      targetPort: {{ default $prt.port $prt.targetPort }}
       protocol: {{ default "TCP" $prt.protocol }}
       name: {{ $prt.name }}
 
