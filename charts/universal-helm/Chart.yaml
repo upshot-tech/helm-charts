@@ -7,9 +7,8 @@ keywords:
   - web3
 
 maintainers:
-  - email: vlad@upshot.xyz
-  - email: tobi@upshot.xyz
+  - name: Sam
+    email: samuel@upshot.xyz
 
 type: application
-
 version: 0.6.11
