@@ -22,7 +22,7 @@ spec:
   selector:
     matchLabels:
       statefulsetname: {{ $sts.name }}
-  replicas: {{- if kindIs "invalid" $sts.replicas }}1{{ else }}{{ $sts.replicas }}{{ end }}
+  replicas: {{- if kindIs "invalid" $sts.replicas }} 1{{ else }} {{ $sts.replicas }}{{ end }}
   template:
     metadata:
       name: {{ template "general.fullname" $ }}
