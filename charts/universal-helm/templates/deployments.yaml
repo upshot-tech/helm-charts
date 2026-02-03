@@ -11,7 +11,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  replicas: {{ default 1 $dpl.replicas }}
+  replicas: {{- if kindIs "invalid" $dpl.replicas }}1{{ else }}{{ $dpl.replicas }}{{ end }}
   selector:
     matchLabels:
       deploymentname: {{ $dpl.name }}

@@ -1,0 +1,5 @@
+# chart-testing config: https://github.com/helm/chart-testing#configuration
+remote: origin
+target-branch: main
+chart-dirs:
+  - charts
